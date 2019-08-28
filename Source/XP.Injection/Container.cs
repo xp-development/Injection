@@ -10,6 +10,7 @@ namespace XP.Injection
   {
     private readonly Dictionary<Type, object> _cache = new Dictionary<Type, object>();
     private readonly ModuleBuilder _moduleBuilder;
+    private static int _uniqueIdentifier;
 
     public Container()
     {
@@ -23,23 +24,33 @@ namespace XP.Injection
     public void Register<T, T1>()
       where T1 : T
     {
-      var typeBuilder = CreateFactoryTypeBuilder<T>();
-      AddFactoryCreateMethod<T, T1>(typeBuilder);
-      AddToCache<T>(typeBuilder);
+      Register(typeof(T), typeof(T1));
+    }
+
+    public void Register(Type t, Type t1)
+    {
+      var typeBuilder = CreateFactoryTypeBuilder(t);
+      AddFactoryCreateMethod(typeBuilder, t, t1);
+      AddToCache(typeBuilder, t);
     }
 
     public T Locate<T>()
     {
-      return (T) ((IFactory)_cache[typeof(T)]).Create();
+      return (T) Locate(typeof(T));
     }
 
-    private static void AddFactoryCreateMethod<T, T1>(TypeBuilder typeBuilder) where T1 : T
+    public object Locate(Type interfaceType)
+    {
+      return ((IFactory)_cache[interfaceType]).Create();
+    }
+
+    private static void AddFactoryCreateMethod(TypeBuilder typeBuilder, Type t, Type t1)
     {
       var methodBuilder = typeBuilder.DefineMethod("IFactory.Create", MethodAttributes.Public | MethodAttributes.Virtual,
         typeof(object), new Type[0]);
       var ilGenerator = methodBuilder.GetILGenerator();
-      ilGenerator.DeclareLocal(typeof(T1));
-      ilGenerator.Emit(OpCodes.Newobj, typeof(T1).GetTypeInfo().DeclaredConstructors.First());
+      ilGenerator.DeclareLocal(t1);
+      ilGenerator.Emit(OpCodes.Newobj, t1.GetTypeInfo().DeclaredConstructors.First());
       ilGenerator.Emit(OpCodes.Stloc_0);
       ilGenerator.Emit(OpCodes.Ldloc_0);
       ilGenerator.Emit(OpCodes.Ret);
@@ -47,14 +58,14 @@ namespace XP.Injection
       typeBuilder.DefineMethodOverride(methodBuilder, createMethod);
     }
 
-    private TypeBuilder CreateFactoryTypeBuilder<T>()
+    private TypeBuilder CreateFactoryTypeBuilder(Type t)
     {
-      return _moduleBuilder.DefineType("TypeFactory", TypeAttributes.Public, null, new[] {typeof(IFactory)});
+      return _moduleBuilder.DefineType("TypeFactory" + _uniqueIdentifier++ + t.Name, TypeAttributes.Public, null, new[] {typeof(IFactory<>).MakeGenericType(t)});
     }
 
-    private void AddToCache<T>(TypeBuilder typeBuilder)
+    private void AddToCache(TypeBuilder typeBuilder, Type t)
     {
-      _cache.Add(typeof(T), Activator.CreateInstance(typeBuilder.CreateTypeInfo().AsType()));
+      _cache.Add(t, Activator.CreateInstance(typeBuilder.CreateTypeInfo().AsType()));
     }
   }
 }

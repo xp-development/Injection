@@ -7,7 +7,7 @@ namespace XP.Injection.UnitTests._Container
   public class Locate
   {
     [Fact]
-    public void ShouldLocateObjectAsTransientObject()
+    public void ShouldLocateObjectAsTransientObjectWithGenericRegister()
     {
       var container = new Container();
       container.Register<ISimpleClass, SimpleClass>();
