@@ -19,5 +19,19 @@ namespace XP.Injection.UnitTests._Container
       locatedObject2.Should().BeOfType<SimpleClass>();
       locatedObject1.Should().NotBeSameAs(locatedObject2);
     }
+
+    [Fact]
+    public void ShouldLocateObjectAsSingletonObjectWithGenericRegister()
+    {
+      var container = new Container();
+      container.RegisterSingleton<ISimpleClass, SimpleClass>();
+
+      var locatedObject1 = container.Locate<ISimpleClass>();
+      var locatedObject2 = container.Locate<ISimpleClass>();
+
+      locatedObject1.Should().BeOfType<SimpleClass>();
+      locatedObject2.Should().BeOfType<SimpleClass>();
+      locatedObject1.Should().BeSameAs(locatedObject2);
+    }
   }
 }

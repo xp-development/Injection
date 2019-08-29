@@ -30,7 +30,20 @@ namespace XP.Injection
     public void Register(Type t, Type t1)
     {
       var typeBuilder = CreateFactoryTypeBuilder(t);
-      AddFactoryCreateMethod(typeBuilder, t, t1);
+      AddTransientFactoryCreateMethod(typeBuilder, t, t1);
+      AddToCache(typeBuilder, t);
+    }
+
+    public void RegisterSingleton<T, T1>()
+    {
+      RegisterSingleton(typeof(T), typeof(T1));
+    }
+
+    public void RegisterSingleton(Type t, Type t1)
+    {
+      var typeBuilder = CreateFactoryTypeBuilder(t);
+      var fieldBuilder = typeBuilder.DefineField("_singleton", t, FieldAttributes.Private);
+      AddSingletonFactoryCreateMethod(typeBuilder, fieldBuilder, t, t1);
       AddToCache(typeBuilder, t);
     }
 
@@ -44,15 +57,36 @@ namespace XP.Injection
       return ((IFactory)_cache[interfaceType]).Create();
     }
 
-    private static void AddFactoryCreateMethod(TypeBuilder typeBuilder, Type t, Type t1)
+    private static void AddSingletonFactoryCreateMethod(TypeBuilder typeBuilder, FieldBuilder fieldBuilder, Type t,
+      Type t1)
     {
       var methodBuilder = typeBuilder.DefineMethod("IFactory.Create", MethodAttributes.Public | MethodAttributes.Virtual,
         typeof(object), new Type[0]);
       var ilGenerator = methodBuilder.GetILGenerator();
+      var label = ilGenerator.DefineLabel();
+
+      ilGenerator.DeclareLocal(t1);
+      ilGenerator.Emit(OpCodes.Ldarg_0);
+      ilGenerator.Emit(OpCodes.Ldfld, fieldBuilder);
+      ilGenerator.Emit(OpCodes.Brtrue_S, label);
+      ilGenerator.Emit(OpCodes.Ldarg_0);
+      ilGenerator.Emit(OpCodes.Newobj, t1.GetTypeInfo().DeclaredConstructors.First());
+      ilGenerator.Emit(OpCodes.Stfld, fieldBuilder);
+      ilGenerator.MarkLabel(label);
+      ilGenerator.Emit(OpCodes.Ldarg_0);
+      ilGenerator.Emit(OpCodes.Ldfld, fieldBuilder);
+      ilGenerator.Emit(OpCodes.Ret);
+
+      var createMethod = typeof(IFactory).GetRuntimeMethod("Create", new Type[0]);
+      typeBuilder.DefineMethodOverride(methodBuilder, createMethod);
+    }
+
+    private static void AddTransientFactoryCreateMethod(TypeBuilder typeBuilder, Type t, Type t1)
+    {
+      var methodBuilder = typeBuilder.DefineMethod("IFactory.Create", MethodAttributes.Public | MethodAttributes.Virtual, typeof(object), new Type[0]);
+      var ilGenerator = methodBuilder.GetILGenerator();
       ilGenerator.DeclareLocal(t1);
       ilGenerator.Emit(OpCodes.Newobj, t1.GetTypeInfo().DeclaredConstructors.First());
-      ilGenerator.Emit(OpCodes.Stloc_0);
-      ilGenerator.Emit(OpCodes.Ldloc_0);
       ilGenerator.Emit(OpCodes.Ret);
       var createMethod = typeof(IFactory).GetRuntimeMethod("Create", new Type[0]);
       typeBuilder.DefineMethodOverride(methodBuilder, createMethod);
