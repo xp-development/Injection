@@ -8,9 +8,9 @@ namespace XP.Injection.UnitTests._Container
   public class LocateAsNonGeneric
   {
     [Theory]
-    [InlineData(typeof(ISimpleClass), typeof(SimpleClass))]
+    [InlineData(typeof(ISimpleClass1), typeof(SimpleClass1))]
     [InlineData(typeof(ISimpleClass2), typeof(SimpleClass2))]
-    public void ShouldLocateObjectAsTransientObjectWithNonGenericRegister(Type interfaceType, Type classType)
+    public void ShouldLocateTransientObject(Type interfaceType, Type classType)
     {
       var container = new Container();
       container.Register(interfaceType, classType);
@@ -24,9 +24,9 @@ namespace XP.Injection.UnitTests._Container
     }
 
     [Theory]
-    [InlineData(typeof(ISimpleClass), typeof(SimpleClass))]
+    [InlineData(typeof(ISimpleClass1), typeof(SimpleClass1))]
     [InlineData(typeof(ISimpleClass2), typeof(SimpleClass2))]
-    public void ShouldLocateObjectAsSingletonObjectWithNonGenericRegister(Type interfaceType, Type classType)
+    public void ShouldLocateSingletonObject(Type interfaceType, Type classType)
     {
       var container = new Container();
       container.RegisterSingleton(interfaceType, classType);

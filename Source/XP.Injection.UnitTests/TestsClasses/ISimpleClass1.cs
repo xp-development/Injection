@@ -1,6 +1,6 @@
 ﻿namespace XP.Injection.UnitTests.TestsClasses
 {
-  public interface ISimpleClass
+  public interface ISimpleClass1
   {
   }
 }

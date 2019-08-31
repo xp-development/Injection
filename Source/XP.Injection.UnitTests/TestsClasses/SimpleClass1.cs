@@ -1,8 +1,8 @@
 ﻿namespace XP.Injection.UnitTests.TestsClasses
 {
-  public class SimpleClass : ISimpleClass
+  public class SimpleClass1 : ISimpleClass1
   {
-    public SimpleClass()
+    public SimpleClass1()
     {
     }
   }
