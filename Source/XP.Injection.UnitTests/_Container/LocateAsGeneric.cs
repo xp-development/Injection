@@ -47,7 +47,27 @@ namespace XP.Injection.UnitTests._Container
 
       locatedObject1.Should().BeOfType<CtorInjectionClass>();
       locatedObject2.Should().BeOfType<CtorInjectionClass>();
-      locatedObject1.Should().BeSameAs(locatedObject2);
+      locatedObject1.Should().NotBeSameAs(locatedObject2);
+      locatedObject1.SimpleClass1.Should().NotBeSameAs(locatedObject2.SimpleClass1);
+      locatedObject1.SimpleClass2.Should().NotBeSameAs(locatedObject2.SimpleClass2);
+    }
+
+    [Fact]
+    public void ShouldLocateTransientObjectWithAnotherSingletonObject()
+    {
+      var container = new Container();
+      container.Register<ICtorInjectionClass, CtorInjectionClass>();
+      container.RegisterSingleton<ISimpleClass1, SimpleClass1>();
+      container.RegisterSingleton<ISimpleClass2, SimpleClass2>();
+
+      var locatedObject1 = container.Locate<ICtorInjectionClass>();
+      var locatedObject2 = container.Locate<ICtorInjectionClass>();
+
+      locatedObject1.Should().BeOfType<CtorInjectionClass>();
+      locatedObject2.Should().BeOfType<CtorInjectionClass>();
+      locatedObject1.Should().NotBeSameAs(locatedObject2);
+      locatedObject1.SimpleClass1.Should().BeSameAs(locatedObject2.SimpleClass1);
+      locatedObject1.SimpleClass2.Should().BeSameAs(locatedObject2.SimpleClass2);
     }
   }
 }
