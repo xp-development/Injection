@@ -1,0 +1,9 @@
+﻿<ProjectConfiguration>
+  <Settings>
+    <FrameworkUtilisationTypeForMSpec>Disabled</FrameworkUtilisationTypeForMSpec>
+    <FrameworkUtilisationTypeForMSTest>Disabled</FrameworkUtilisationTypeForMSTest>
+    <FrameworkUtilisationTypeForNUnit2>Disabled</FrameworkUtilisationTypeForNUnit2>
+    <InstrumentOutputAssembly>True</InstrumentOutputAssembly>
+    <NUnit3Enabled>False</NUnit3Enabled>
+  </Settings>
+</ProjectConfiguration>
