@@ -9,6 +9,7 @@ namespace XP.Injection
     MethodBuilder MethodBuilder { get; }
 
     object CreateObject();
-    void InitializeFactory(IContainerConstruction containerConstruction, Type keyType, Type valueType, FactoryType factoryType);
+    void InitializeFactory( Type keyType, Type valueType, FactoryType factoryType );
+    Type GetValueType();
   }
 }

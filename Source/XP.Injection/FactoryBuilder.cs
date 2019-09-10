@@ -1,38 +1,59 @@
 ﻿using System;
 using System.Reflection.Emit;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace XP.Injection
 {
   public class FactoryBuilder : IFactoryBuilder
   {
     private IObjectFactory _factory;
+    private IContainerConstruction _construction;
+    private ManualResetEventSlim _resetEvent = new ManualResetEventSlim();
+    private Type _valueType;
 
     public TypeBuilder TypeBuilder { get; }
     public MethodBuilder MethodBuilder { get; }
 
-    public void InitializeFactory(IContainerConstruction containerConstruction, Type keyType, Type valueType, FactoryType factoryType)
+    public void InitializeFactory( Type keyType, Type valueType, FactoryType factoryType )
     {
-      switch (factoryType)
+        _valueType = valueType;
+        switch (factoryType)
       {
         case FactoryType.ForTransientObject:
-          _factory = new TransientObjectFactory(containerConstruction, valueType, TypeBuilder, MethodBuilder);
+          _factory = new TransientObjectFactory(_construction, valueType, TypeBuilder, MethodBuilder);
           break;
         case FactoryType.ForSingletonObject:
-          _factory = new SingletonObjectFactory(containerConstruction, valueType, TypeBuilder, MethodBuilder);
+          _factory = new SingletonObjectFactory(_construction, valueType, TypeBuilder, MethodBuilder);
           break;
         default:
           throw new ArgumentOutOfRangeException(nameof(factoryType), factoryType, null);
       }
+
+        Task.Run(() =>
+        {
+            var factory = _factory.Create( keyType );
+            _factory.SetFactory(factory);
+            _resetEvent.Set();
+            return factory;
+        } );
+    }
+
+    public Type GetValueType()
+    {
+        return _valueType;
     }
 
     public object CreateObject()
     {
-      return _factory.GetOrCreate().Create();
+        _resetEvent.Wait();
+            return _factory.Get();
     }
 
-    public FactoryBuilder(TypeBuilder typeBuilder, MethodBuilder methodBuilder)
+    public FactoryBuilder( IContainerConstruction construction, TypeBuilder typeBuilder, MethodBuilder methodBuilder )
     {
-      TypeBuilder = typeBuilder;
+        _construction = construction;
+        TypeBuilder = typeBuilder;
       MethodBuilder = methodBuilder;
     }
   }

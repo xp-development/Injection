@@ -7,16 +7,14 @@ namespace XP.Injection
 {
   public class SingletonObjectFactory : ObjectFactoryBase
   {
-    private readonly IContainerConstruction _containerConstruction;
-    private readonly MethodBuilder _methodBuilder;
+      private readonly MethodBuilder _methodBuilder;
 
-    public SingletonObjectFactory(IContainerConstruction containerConstruction, Type valueType, TypeBuilder typeBuilder, MethodBuilder methodBuilder)
-      : base(containerConstruction, typeBuilder, valueType)
+    public SingletonObjectFactory( IContainerConstruction containerConstruction, Type valueType, TypeBuilder typeBuilder, MethodBuilder methodBuilder )
+      : base(containerConstruction, typeBuilder)
     {
-      _containerConstruction = containerConstruction;
-      _methodBuilder = methodBuilder;
+        _methodBuilder = methodBuilder;
 
-//      AddConstructor(valueType, typeBuilder);
+      AddConstructor(valueType, typeBuilder);
       AddSingletonFactoryCreateMethod(valueType);
     }
 
@@ -39,7 +37,7 @@ namespace XP.Injection
       ilGenerator.Emit(OpCodes.Ldfld, fieldBuilder);
       ilGenerator.Emit(OpCodes.Ret);
 
-      var createMethod = typeof(IFactory).GetRuntimeMethod("Create", new Type[0]);
+      var createMethod = typeof(IFactory).GetRuntimeMethod(nameof(IFactory.Get), new Type[0]);
       TypeBuilder.DefineMethodOverride(_methodBuilder, createMethod);
     }
   }

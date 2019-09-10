@@ -1,19 +1,16 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
 namespace XP.Injection
 {
-  public class Container
+  public class Container : IContainerConstruction
   {
-    private readonly ConcurrentDictionary<Type, ConstructionData> _construction = new ConcurrentDictionary<Type, ConstructionData>();
     private readonly ModuleBuilder _moduleBuilder;
     private static int _uniqueIdentifier;
 
-    private readonly Dictionary<Type, FieldBuilder> _constructorFieldBuilders = new Dictionary<Type, FieldBuilder>();
+    private readonly ConcurrentDictionary<Type, IFactoryBuilder> _factoryBuilders = new ConcurrentDictionary<Type, IFactoryBuilder>();
 
     public Container()
     {
@@ -32,134 +29,41 @@ namespace XP.Injection
 
     public void Register(Type keyType, Type valueType)
     {
-      var builders = GetOrAddBuilders(keyType);
-      builders.ValueType = valueType;
-      AddConstructor(valueType, builders.FactoryTypeBuilder);
-      AddTransientFactoryCreateMethod(keyType, valueType);
+        var builder = GetOrAddFactoryBuilder(keyType);
+        builder.InitializeFactory(keyType, valueType, FactoryType.ForTransientObject);
     }
 
-    public void RegisterSingleton<TKey, TValue>()
+        public void RegisterSingleton<TKey, TValue>()
     {
       RegisterSingleton(typeof(TKey), typeof(TValue));
     }
 
     public void RegisterSingleton(Type keyType, Type valueType)
     {
-      var builders = GetOrAddBuilders(keyType);
-      builders.ValueType = valueType;
-      AddConstructor(valueType, builders.FactoryTypeBuilder);
-      AddSingletonFactoryCreateMethod(keyType, valueType);
+        var builder = GetOrAddFactoryBuilder(keyType);
+        builder.InitializeFactory(keyType, valueType, FactoryType.ForSingletonObject);
     }
 
-    public TKey Locate<TKey>()
+        public TKey Locate<TKey>()
     {
       return (TKey) Locate(typeof(TKey));
     }
 
     public object Locate(Type keyType)
     {
-      return GetOrCreateFactory(keyType).Create();
+        return _factoryBuilders[keyType].CreateObject();
     }
 
-    private void AddTransientFactoryCreateMethod(Type keyType, Type valueType)
+    public IFactoryBuilder GetOrAddFactoryBuilder(Type keyType)
     {
-      var construction = _construction[keyType];
-      var ilGenerator = construction.FactoryMethodBuilder.GetILGenerator();
-
-      foreach (var constructorParameterType in _constructorFieldBuilders)
+      if (_factoryBuilders.TryGetValue(keyType, out var factoryBuilder))
       {
-        var constructorParameterBuilders = GetOrAddBuilders(constructorParameterType.Key);
-        ilGenerator.Emit(OpCodes.Ldarg_0);
-        ilGenerator.Emit(OpCodes.Ldfld, constructorParameterType.Value);
-        ilGenerator.Emit(OpCodes.Callvirt, constructorParameterBuilders.FactoryMethodBuilder);
-        ilGenerator.Emit(OpCodes.Castclass, constructorParameterType.Key);
-      }
-
-      _constructorFieldBuilders.Clear();
-      ilGenerator.Emit(OpCodes.Newobj, valueType.GetTypeInfo().DeclaredConstructors.First());
-      ilGenerator.Emit(OpCodes.Ret);
-      var createMethod = typeof(IFactory).GetRuntimeMethod("Create", new Type[0]);
-      construction.FactoryTypeBuilder.DefineMethodOverride(construction.FactoryMethodBuilder, createMethod);
-    }
-
-    private void AddSingletonFactoryCreateMethod(Type keyType, Type valueType)
-    {
-      var construction = _construction[keyType];
-      var fieldBuilder = construction.FactoryTypeBuilder.DefineField("_singleton", keyType, FieldAttributes.Private);
-
-      var ilGenerator = construction.FactoryMethodBuilder.GetILGenerator();
-      var label = ilGenerator.DefineLabel();
-
-      ilGenerator.DeclareLocal(valueType);
-      ilGenerator.Emit(OpCodes.Ldarg_0);
-      ilGenerator.Emit(OpCodes.Ldfld, fieldBuilder);
-      ilGenerator.Emit(OpCodes.Brtrue_S, label);
-      ilGenerator.Emit(OpCodes.Ldarg_0);
-      ilGenerator.Emit(OpCodes.Newobj, valueType.GetTypeInfo().DeclaredConstructors.First());
-      ilGenerator.Emit(OpCodes.Stfld, fieldBuilder);
-      ilGenerator.MarkLabel(label);
-      ilGenerator.Emit(OpCodes.Ldarg_0);
-      ilGenerator.Emit(OpCodes.Ldfld, fieldBuilder);
-      ilGenerator.Emit(OpCodes.Ret);
-
-      var createMethod = typeof(IFactory).GetRuntimeMethod("Create", new Type[0]);
-      construction.FactoryTypeBuilder.DefineMethodOverride(construction.FactoryMethodBuilder, createMethod);
-    }
-
-    private void AddConstructor(Type valueType, TypeBuilder factoryTypeBuilder)
-    {
-      var constructorParameterTypes = GetConstructorParameterTypes(valueType);
-      if (constructorParameterTypes.Length == 0)
-        return;
-
-      var constructorTypes = constructorParameterTypes.Select(x => new { ConstructorType = x, FactoryType = GetOrAddBuilders(x).FactoryTypeBuilder.AsType()}).ToArray();
-
-      var constructorBuilder = factoryTypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, constructorTypes.Select(x => x.FactoryType).ToArray());
-      var ilGenerator = constructorBuilder.GetILGenerator();
-      ilGenerator.DeclareLocal(valueType);
-      ilGenerator.Emit(OpCodes.Ldarg_0);
-      ilGenerator.Emit(OpCodes.Call, typeof(object).GetTypeInfo().DeclaredConstructors.First());
-      var parameterCounter = 0;
-      foreach (var constructorType in constructorTypes)
-      {
-        var fieldBuilder = factoryTypeBuilder.DefineField($"_field{++parameterCounter}", constructorType.FactoryType, FieldAttributes.Private);
-        ilGenerator.Emit(OpCodes.Ldarg_0);
-        ilGenerator.Emit(OpCodes.Ldarg_S, parameterCounter);
-        ilGenerator.Emit(OpCodes.Stfld, fieldBuilder);
-        _constructorFieldBuilders.Add(constructorType.ConstructorType, fieldBuilder);
-      }
-
-      ilGenerator.Emit(OpCodes.Ret);
-    }
-
-    private static Type[] GetConstructorParameterTypes(Type valueType)
-    {
-      var constructorParameterTypes = valueType.GetTypeInfo().DeclaredConstructors.First().GetParameters()
-        .Select(x => x.ParameterType).ToArray();
-      return constructorParameterTypes;
-    }
-
-    private ConstructionData GetOrAddBuilders(Type keyType)
-    {
-      if (_construction.TryGetValue(keyType, out var constructionData))
-      {
-        return constructionData;
+        return factoryBuilder;
       }
 
       var factoryTypeBuilder = _moduleBuilder.DefineType("TypeFactory" + _uniqueIdentifier++ + keyType.Name, TypeAttributes.Public, null, new[] {typeof(IFactory<>).MakeGenericType(keyType)});
-      var factoryMethodBuilder = factoryTypeBuilder.DefineMethod("IFactory.Create", MethodAttributes.Public | MethodAttributes.Virtual, typeof(object), new Type[0]);
-      return _construction.GetOrAdd(keyType, new ConstructionData(factoryTypeBuilder, factoryMethodBuilder));
-    }
-
-    private IFactory GetOrCreateFactory(Type keyType)
-    {
-      var construction = _construction[keyType];
-      if (construction.Factory != null)
-        return construction.Factory;
-
-      var constructorArgs = GetConstructorParameterTypes(construction.ValueType).Select(GetOrCreateFactory).Cast<object>().ToArray();
-      construction.Factory = (IFactory) Activator.CreateInstance(construction.FactoryTypeBuilder.CreateTypeInfo().AsType(), constructorArgs.Length == 0 ? null : constructorArgs);
-      return construction.Factory;
+      var factoryMethodBuilder = factoryTypeBuilder.DefineMethod("IFactory.Get", MethodAttributes.Public | MethodAttributes.Virtual, typeof(object), new Type[0]);
+      return _factoryBuilders.GetOrAdd(keyType, new FactoryBuilder(this, factoryTypeBuilder, factoryMethodBuilder));
     }
   }
 }
