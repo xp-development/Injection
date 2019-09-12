@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -8,12 +7,7 @@ namespace XP.Injection
 {
   public class TransientObjectFactory : ObjectFactoryBase
   {
-    private readonly IContainerConstruction _containerConstruction;
-    private readonly TypeBuilder _typeBuilder;
-    private readonly MethodBuilder _methodBuilder;
-    
-
-    internal TransientObjectFactory( IContainerConstruction containerConstruction, Type valueType, TypeBuilder typeBuilder, MethodBuilder methodBuilder )
+    internal TransientObjectFactory(IContainerConstruction containerConstruction, Type valueType, TypeBuilder typeBuilder, MethodBuilder methodBuilder)
       : base(containerConstruction, typeBuilder)
     {
       _containerConstruction = containerConstruction;
@@ -41,5 +35,9 @@ namespace XP.Injection
       var createMethod = typeof(IFactory).GetRuntimeMethod("Get", new Type[0]);
       _typeBuilder.DefineMethodOverride(_methodBuilder, createMethod);
     }
+
+    private readonly IContainerConstruction _containerConstruction;
+    private readonly MethodBuilder _methodBuilder;
+    private readonly TypeBuilder _typeBuilder;
   }
 }

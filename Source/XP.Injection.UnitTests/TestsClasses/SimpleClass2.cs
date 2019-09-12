@@ -2,6 +2,5 @@
 {
   public class SimpleClass2 : ISimpleClass2
   {
-    
   }
 }

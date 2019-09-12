@@ -7,11 +7,6 @@ namespace XP.Injection
 {
   public class Container : IContainerConstruction
   {
-    private readonly ModuleBuilder _moduleBuilder;
-    private static int _uniqueIdentifier;
-
-    private readonly ConcurrentDictionary<Type, IFactoryBuilder> _factoryBuilders = new ConcurrentDictionary<Type, IFactoryBuilder>();
-
     public Container()
     {
       if (_moduleBuilder == null)
@@ -19,6 +14,16 @@ namespace XP.Injection
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(Guid.NewGuid().ToString()), AssemblyBuilderAccess.Run);
         _moduleBuilder = assemblyBuilder.DefineDynamicModule("DynamicModule");
       }
+    }
+
+    public IFactoryBuilder GetOrAddFactoryBuilder(Type keyType)
+    {
+      if (_factoryBuilders.TryGetValue(keyType, out var factoryBuilder))
+        return factoryBuilder;
+
+      var factoryTypeBuilder = _moduleBuilder.DefineType("TypeFactory" + _uniqueIdentifier++ + keyType.Name, TypeAttributes.Public, null, new[] {typeof(IFactory<>).MakeGenericType(keyType)});
+      var factoryMethodBuilder = factoryTypeBuilder.DefineMethod("IFactory.Get", MethodAttributes.Public | MethodAttributes.Virtual, typeof(object), new Type[0]);
+      return _factoryBuilders.GetOrAdd(keyType, new FactoryBuilder(this, factoryTypeBuilder, factoryMethodBuilder));
     }
 
     public void Register<TKey, TValue>()
@@ -29,41 +34,34 @@ namespace XP.Injection
 
     public void Register(Type keyType, Type valueType)
     {
-        var builder = GetOrAddFactoryBuilder(keyType);
-        builder.InitializeFactory(keyType, valueType, FactoryType.ForTransientObject);
+      var builder = GetOrAddFactoryBuilder(keyType);
+      builder.InitializeFactory(keyType, valueType, FactoryType.ForTransientObject);
     }
 
-        public void RegisterSingleton<TKey, TValue>()
+    public void RegisterSingleton<TKey, TValue>()
     {
       RegisterSingleton(typeof(TKey), typeof(TValue));
     }
 
     public void RegisterSingleton(Type keyType, Type valueType)
     {
-        var builder = GetOrAddFactoryBuilder(keyType);
-        builder.InitializeFactory(keyType, valueType, FactoryType.ForSingletonObject);
+      var builder = GetOrAddFactoryBuilder(keyType);
+      builder.InitializeFactory(keyType, valueType, FactoryType.ForSingletonObject);
     }
 
-        public TKey Locate<TKey>()
+    public TKey Locate<TKey>()
     {
       return (TKey) Locate(typeof(TKey));
     }
 
     public object Locate(Type keyType)
     {
-        return _factoryBuilders[keyType].CreateObject();
+      return _factoryBuilders[keyType].CreateObject();
     }
 
-    public IFactoryBuilder GetOrAddFactoryBuilder(Type keyType)
-    {
-      if (_factoryBuilders.TryGetValue(keyType, out var factoryBuilder))
-      {
-        return factoryBuilder;
-      }
+    private static int _uniqueIdentifier;
 
-      var factoryTypeBuilder = _moduleBuilder.DefineType("TypeFactory" + _uniqueIdentifier++ + keyType.Name, TypeAttributes.Public, null, new[] {typeof(IFactory<>).MakeGenericType(keyType)});
-      var factoryMethodBuilder = factoryTypeBuilder.DefineMethod("IFactory.Get", MethodAttributes.Public | MethodAttributes.Virtual, typeof(object), new Type[0]);
-      return _factoryBuilders.GetOrAdd(keyType, new FactoryBuilder(this, factoryTypeBuilder, factoryMethodBuilder));
-    }
+    private readonly ConcurrentDictionary<Type, IFactoryBuilder> _factoryBuilders = new ConcurrentDictionary<Type, IFactoryBuilder>();
+    private readonly ModuleBuilder _moduleBuilder;
   }
 }
