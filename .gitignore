@@ -7,3 +7,5 @@
 /Source/packages
 **/bin/Debug
 **/obj/
+*.user
+/Source/_NCrunch_XP.Injection

@@ -6,6 +6,6 @@
 
   public interface IFactory
   {
-    object Create();
+    object Get();
   }
 }
