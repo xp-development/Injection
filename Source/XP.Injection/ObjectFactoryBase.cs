@@ -34,7 +34,7 @@ namespace XP.Injection
       _factory = factory;
     }
 
-    protected Type[] GetConstructorParameterTypes(Type type)
+    private Type[] GetConstructorParameterTypes(Type type)
     {
       var constructorParameterTypes = type.GetTypeInfo().DeclaredConstructors.First().GetParameters()
                                           .Select(x => x.ParameterType).ToArray();

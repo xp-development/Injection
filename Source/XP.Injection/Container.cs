@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -34,8 +36,32 @@ namespace XP.Injection
 
     public void Register(Type keyType, Type valueType)
     {
-      var builder = GetOrAddFactoryBuilder(keyType);
-      builder.InitializeFactory(keyType, valueType, FactoryType.ForTransientObject);
+      AddToRegistry(keyType, valueType, FactoryType.ForTransientObject);
+      InitializeAvailableFactories();
+    }
+
+    private void InitializeAvailableFactories()
+    {
+      bool factoryInitialized;
+      do
+      {
+        factoryInitialized = false;
+        foreach (var registryEntry in _registry.ToList())
+        {
+          if (registryEntry.MissingInjectionTypes.Any())
+          {
+            continue;
+          }
+          var builder = GetOrAddFactoryBuilder(registryEntry.KeyType);
+          builder.InitializeFactory(registryEntry.KeyType, registryEntry.ValueType, registryEntry.FactoryType);
+          _registry.Remove(registryEntry);
+          foreach (var entry in _registry)
+          {
+            entry.MissingInjectionTypes.Remove(registryEntry.KeyType);
+          }
+          factoryInitialized = true;
+        }
+      } while (factoryInitialized);
     }
 
     public void RegisterSingleton<TKey, TValue>()
@@ -45,8 +71,21 @@ namespace XP.Injection
 
     public void RegisterSingleton(Type keyType, Type valueType)
     {
-      var builder = GetOrAddFactoryBuilder(keyType);
-      builder.InitializeFactory(keyType, valueType, FactoryType.ForSingletonObject);
+      AddToRegistry(keyType, valueType, FactoryType.ForSingletonObject);
+      InitializeAvailableFactories();
+    }
+
+    private void AddToRegistry(Type keyType, Type valueType, FactoryType factoryType)
+    {
+      var registryEntry = new RegistryEntry { KeyType = keyType, ValueType = valueType, FactoryType = factoryType};
+      registryEntry.MissingInjectionTypes.AddRange(GetConstructorParameterTypes(valueType));
+
+      _registry.Add(registryEntry);
+    }
+
+    private Type[] GetConstructorParameterTypes(Type type)
+    {
+      return type.GetTypeInfo().DeclaredConstructors.First().GetParameters().Select(x => x.ParameterType).ToArray();
     }
 
     public TKey Locate<TKey>()
@@ -62,6 +101,7 @@ namespace XP.Injection
     private static int _uniqueIdentifier;
 
     private readonly ConcurrentDictionary<Type, IFactoryBuilder> _factoryBuilders = new ConcurrentDictionary<Type, IFactoryBuilder>();
+    private readonly IList<RegistryEntry> _registry = new List<RegistryEntry>();
     private readonly ModuleBuilder _moduleBuilder;
   }
 }

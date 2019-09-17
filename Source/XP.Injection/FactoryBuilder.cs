@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Reflection.Emit;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace XP.Injection
 {
@@ -32,13 +30,8 @@ namespace XP.Injection
           throw new ArgumentOutOfRangeException(nameof(factoryType), factoryType, null);
       }
 
-      Task.Run(() =>
-               {
-                 var factory = _factory.Create(keyType);
-                 _factory.SetFactory(factory);
-                 _resetEvent.Set();
-                 return factory;
-               });
+       var factory = _factory.Create(keyType);
+       _factory.SetFactory(factory);
     }
 
     public Type GetValueType()
@@ -48,12 +41,10 @@ namespace XP.Injection
 
     public object CreateObject()
     {
-      _resetEvent.Wait();
       return _factory.Get();
     }
 
     private readonly IContainerConstruction _construction;
-    private readonly ManualResetEventSlim _resetEvent = new ManualResetEventSlim();
     private IObjectFactory _factory;
     private Type _valueType;
   }
