@@ -46,19 +46,14 @@ namespace XP.Injection
       do
       {
         factoryInitialized = false;
-        foreach (var registryEntry in _registry.ToList())
+        foreach (var registryEntry in _registry.ToList().Where(x => !x.MissingInjectionTypes.Any()))
         {
-          if (registryEntry.MissingInjectionTypes.Any())
-          {
-            continue;
-          }
           var builder = GetOrAddFactoryBuilder(registryEntry.KeyType);
-          builder.InitializeFactory(registryEntry.KeyType, registryEntry.ValueType, registryEntry.FactoryType);
+          _factories.TryAdd(registryEntry.KeyType, builder.CreateFactory(registryEntry.KeyType, registryEntry.ValueType, registryEntry.FactoryType));
           _registry.Remove(registryEntry);
           foreach (var entry in _registry)
-          {
             entry.MissingInjectionTypes.Remove(registryEntry.KeyType);
-          }
+
           factoryInitialized = true;
         }
       } while (factoryInitialized);
@@ -95,12 +90,13 @@ namespace XP.Injection
 
     public object Locate(Type keyType)
     {
-      return _factoryBuilders[keyType].CreateObject();
+      return _factories[keyType].Get();
     }
 
     private static int _uniqueIdentifier;
 
     private readonly ConcurrentDictionary<Type, IFactoryBuilder> _factoryBuilders = new ConcurrentDictionary<Type, IFactoryBuilder>();
+    private readonly ConcurrentDictionary<Type, IFactory> _factories = new ConcurrentDictionary<Type, IFactory>();
     private readonly IList<RegistryEntry> _registry = new List<RegistryEntry>();
     private readonly ModuleBuilder _moduleBuilder;
   }

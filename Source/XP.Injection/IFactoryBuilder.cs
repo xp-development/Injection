@@ -8,8 +8,7 @@ namespace XP.Injection
     TypeBuilder TypeBuilder { get; }
     MethodBuilder MethodBuilder { get; }
 
-    object CreateObject();
-    void InitializeFactory( Type keyType, Type valueType, FactoryType factoryType );
-    Type GetValueType();
+    IFactory CreateFactory( Type keyType, Type valueType, FactoryType factoryType );
+    Type ValueType { get; }
   }
 }

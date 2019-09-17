@@ -21,7 +21,7 @@ namespace XP.Injection
     private void AddTransientFactoryCreateMethod(Type valueType)
     {
       var ilGenerator = _methodBuilder.GetILGenerator();
-      foreach (var constructorParameterType in _constructorFieldBuilders)
+      foreach (var constructorParameterType in ConstructorFieldBuilders)
       {
         var constructorParameterBuilders = _containerConstruction.GetOrAddFactoryBuilder(constructorParameterType.Key);
         ilGenerator.Emit(OpCodes.Ldarg_0);
