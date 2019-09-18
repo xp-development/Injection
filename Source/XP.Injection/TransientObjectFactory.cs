@@ -7,10 +7,9 @@ namespace XP.Injection
 {
   public class TransientObjectFactory : ObjectFactoryBase
   {
-    internal TransientObjectFactory(IContainerConstruction containerConstruction, Type valueType, TypeBuilder typeBuilder, MethodBuilder methodBuilder)
+    public TransientObjectFactory(IContainerConstruction containerConstruction, Type valueType, TypeBuilder typeBuilder, MethodBuilder methodBuilder)
       : base(containerConstruction, typeBuilder)
     {
-      _containerConstruction = containerConstruction;
       _typeBuilder = typeBuilder;
       _methodBuilder = methodBuilder;
 
@@ -23,7 +22,7 @@ namespace XP.Injection
       var ilGenerator = _methodBuilder.GetILGenerator();
       foreach (var constructorParameterType in ConstructorFieldBuilders)
       {
-        var constructorParameterBuilders = _containerConstruction.GetOrAddFactoryBuilder(constructorParameterType.Key);
+        var constructorParameterBuilders = ContainerConstruction.GetOrAddFactoryBuilder(constructorParameterType.Key);
         ilGenerator.Emit(OpCodes.Ldarg_0);
         ilGenerator.Emit(OpCodes.Ldfld, constructorParameterType.Value);
         ilGenerator.Emit(OpCodes.Callvirt, constructorParameterBuilders.MethodBuilder);
@@ -36,7 +35,6 @@ namespace XP.Injection
       _typeBuilder.DefineMethodOverride(_methodBuilder, createMethod);
     }
 
-    private readonly IContainerConstruction _containerConstruction;
     private readonly MethodBuilder _methodBuilder;
     private readonly TypeBuilder _typeBuilder;
   }

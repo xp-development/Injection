@@ -18,21 +18,28 @@ namespace XP.Injection
 
     private void AddSingletonFactoryCreateMethod(Type valueType)
     {
-      var fieldBuilder = TypeBuilder.DefineField("_singleton", valueType, FieldAttributes.Private);
-
+      var singletonFieldBuilder = TypeBuilder.DefineField("_singleton", valueType, FieldAttributes.Private);
       var ilGenerator = _methodBuilder.GetILGenerator();
       var label = ilGenerator.DefineLabel();
-
       ilGenerator.DeclareLocal(valueType);
       ilGenerator.Emit(OpCodes.Ldarg_0);
-      ilGenerator.Emit(OpCodes.Ldfld, fieldBuilder);
+      ilGenerator.Emit(OpCodes.Ldfld, singletonFieldBuilder);
       ilGenerator.Emit(OpCodes.Brtrue_S, label);
       ilGenerator.Emit(OpCodes.Ldarg_0);
+      foreach (var constructorParameterType in ConstructorFieldBuilders)
+      {
+        var constructorParameterBuilders = ContainerConstruction.GetOrAddFactoryBuilder(constructorParameterType.Key);
+        ilGenerator.Emit(OpCodes.Ldarg_0);
+        ilGenerator.Emit(OpCodes.Ldfld, constructorParameterType.Value);
+        ilGenerator.Emit(OpCodes.Callvirt, constructorParameterBuilders.MethodBuilder);
+        ilGenerator.Emit(OpCodes.Castclass, constructorParameterType.Key);
+      }
+
       ilGenerator.Emit(OpCodes.Newobj, valueType.GetTypeInfo().DeclaredConstructors.First());
-      ilGenerator.Emit(OpCodes.Stfld, fieldBuilder);
+      ilGenerator.Emit(OpCodes.Stfld, singletonFieldBuilder);
       ilGenerator.MarkLabel(label);
       ilGenerator.Emit(OpCodes.Ldarg_0);
-      ilGenerator.Emit(OpCodes.Ldfld, fieldBuilder);
+      ilGenerator.Emit(OpCodes.Ldfld, singletonFieldBuilder);
       ilGenerator.Emit(OpCodes.Ret);
 
       var createMethod = typeof(IFactory).GetRuntimeMethod(nameof(IFactory.Get), new Type[0]);

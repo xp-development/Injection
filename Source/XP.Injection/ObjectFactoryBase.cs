@@ -12,13 +12,13 @@ namespace XP.Injection
 
     protected ObjectFactoryBase(IContainerConstruction containerConstruction, TypeBuilder typeBuilder)
     {
-      _containerConstruction = containerConstruction;
+      ContainerConstruction = containerConstruction;
       TypeBuilder = typeBuilder;
     }
 
     public IFactory Create(Type keyType)
     {
-      var factoryBuilder = _containerConstruction.GetOrAddFactoryBuilder(keyType);
+      var factoryBuilder = ContainerConstruction.GetOrAddFactoryBuilder(keyType);
       var constructorArgs = GetConstructorParameterTypes(factoryBuilder.ValueType).Select(Create).Cast<object>().ToArray();
       return (IFactory) Activator.CreateInstance(factoryBuilder.TypeBuilder.CreateTypeInfo().AsType(), constructorArgs.Length == 0 ? null : constructorArgs);
     }
@@ -36,7 +36,7 @@ namespace XP.Injection
       if (constructorParameterTypes.Length == 0)
         return;
 
-      var constructorTypes = constructorParameterTypes.Select(x => new {ConstructorType = x, FactoryType = _containerConstruction.GetOrAddFactoryBuilder(x).TypeBuilder.AsType()}).ToArray();
+      var constructorTypes = constructorParameterTypes.Select(x => new {ConstructorType = x, FactoryType = ContainerConstruction.GetOrAddFactoryBuilder(x).TypeBuilder.AsType()}).ToArray();
 
       var constructorBuilder = typeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, constructorTypes.Select(x => x.FactoryType).ToArray());
       var ilGenerator = constructorBuilder.GetILGenerator();
@@ -57,6 +57,6 @@ namespace XP.Injection
     }
 
     protected readonly Dictionary<Type, FieldBuilder> ConstructorFieldBuilders = new Dictionary<Type, FieldBuilder>();
-    private readonly IContainerConstruction _containerConstruction;
+    protected readonly IContainerConstruction ContainerConstruction;
   }
 }
