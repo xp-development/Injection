@@ -19,20 +19,13 @@ namespace XP.Injection
     public IFactory Create(Type keyType)
     {
       var factoryBuilder = ContainerConstruction.GetOrAddFactoryBuilder(keyType);
-      var constructorArgs = GetConstructorParameterTypes(factoryBuilder.ValueType).Select(Create).Cast<object>().ToArray();
+      var constructorArgs = factoryBuilder.ValueType.GetPublicConstructor().GetConstructorParameterTypes().Select(Create).Cast<object>().ToArray();
       return (IFactory) Activator.CreateInstance(factoryBuilder.TypeBuilder.CreateTypeInfo().AsType(), constructorArgs.Length == 0 ? null : constructorArgs);
-    }
-
-    private Type[] GetConstructorParameterTypes(Type type)
-    {
-      var constructorParameterTypes = type.GetTypeInfo().DeclaredConstructors.First().GetParameters()
-                                          .Select(x => x.ParameterType).ToArray();
-      return constructorParameterTypes;
     }
 
     protected void AddConstructor(Type valueType, TypeBuilder typeBuilder)
     {
-      var constructorParameterTypes = GetConstructorParameterTypes(valueType);
+      var constructorParameterTypes = valueType.GetPublicConstructor().GetConstructorParameterTypes();
       if (constructorParameterTypes.Length == 0)
         return;
 

@@ -6,6 +6,7 @@
 /Source/.vs/XP.Injection
 /Source/packages
 **/bin/Debug
+**/bin/Release
 **/obj/
 *.user
 /Source/_NCrunch_XP.Injection

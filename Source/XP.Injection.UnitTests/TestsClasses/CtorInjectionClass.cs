@@ -2,6 +2,10 @@
 {
   public class CtorInjectionClass : ICtorInjectionClass
   {
+    protected CtorInjectionClass()
+    {
+    }
+
     public CtorInjectionClass(ISimpleClass1 simpleClass1, ISimpleClass2 simpleClass2)
     {
       SimpleClass1 = simpleClass1;

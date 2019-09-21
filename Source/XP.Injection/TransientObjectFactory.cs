@@ -29,7 +29,7 @@ namespace XP.Injection
         ilGenerator.Emit(OpCodes.Castclass, constructorParameterType.Key);
       }
 
-      ilGenerator.Emit(OpCodes.Newobj, valueType.GetTypeInfo().DeclaredConstructors.First());
+      ilGenerator.Emit(OpCodes.Newobj, valueType.GetPublicConstructor());
       ilGenerator.Emit(OpCodes.Ret);
       var createMethod = typeof(IFactory).GetRuntimeMethod("Get", new Type[0]);
       _typeBuilder.DefineMethodOverride(_methodBuilder, createMethod);

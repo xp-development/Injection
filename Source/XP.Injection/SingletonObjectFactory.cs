@@ -35,7 +35,7 @@ namespace XP.Injection
         ilGenerator.Emit(OpCodes.Castclass, constructorParameterType.Key);
       }
 
-      ilGenerator.Emit(OpCodes.Newobj, valueType.GetTypeInfo().DeclaredConstructors.First());
+      ilGenerator.Emit(OpCodes.Newobj, valueType.GetPublicConstructor());
       ilGenerator.Emit(OpCodes.Stfld, singletonFieldBuilder);
       ilGenerator.MarkLabel(label);
       ilGenerator.Emit(OpCodes.Ldarg_0);

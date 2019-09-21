@@ -49,7 +49,7 @@ namespace XP.Injection
         foreach (var registryEntry in _registry.ToList().Where(x => !x.MissingInjectionTypes.Any()))
         {
           var builder = GetOrAddFactoryBuilder(registryEntry.KeyType);
-          _factories.TryAdd(registryEntry.KeyType, builder.CreateFactory(registryEntry.KeyType, registryEntry.ValueType, registryEntry.FactoryType));
+          _factories.Add(registryEntry.KeyType, builder.CreateFactory(registryEntry.KeyType, registryEntry.ValueType, registryEntry.FactoryType));
           _registry.Remove(registryEntry);
           foreach (var entry in _registry)
             entry.MissingInjectionTypes.Remove(registryEntry.KeyType);
@@ -73,14 +73,9 @@ namespace XP.Injection
     private void AddToRegistry(Type keyType, Type valueType, FactoryType factoryType)
     {
       var registryEntry = new RegistryEntry { KeyType = keyType, ValueType = valueType, FactoryType = factoryType};
-      registryEntry.MissingInjectionTypes.AddRange(GetConstructorParameterTypes(valueType));
+      registryEntry.MissingInjectionTypes.AddRange(valueType.GetPublicConstructor().GetConstructorParameterTypes());
 
       _registry.Add(registryEntry);
-    }
-
-    private Type[] GetConstructorParameterTypes(Type type)
-    {
-      return type.GetTypeInfo().DeclaredConstructors.First().GetParameters().Select(x => x.ParameterType).ToArray();
     }
 
     public TKey Locate<TKey>()
@@ -96,7 +91,7 @@ namespace XP.Injection
     private static int _uniqueIdentifier;
 
     private readonly ConcurrentDictionary<Type, IFactoryBuilder> _factoryBuilders = new ConcurrentDictionary<Type, IFactoryBuilder>();
-    private readonly ConcurrentDictionary<Type, IFactory> _factories = new ConcurrentDictionary<Type, IFactory>();
+    private readonly Dictionary<Type, IFactory> _factories = new Dictionary<Type, IFactory>();
     private readonly IList<RegistryEntry> _registry = new List<RegistryEntry>();
     private readonly ModuleBuilder _moduleBuilder;
   }
