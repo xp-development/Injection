@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
 namespace XP.Injection
 {
-  public class TransientObjectFactory : ObjectFactoryBase
+  public class TransientObjectFactory<T> : ObjectFactoryBase<T>
   {
     public TransientObjectFactory(IContainerConstruction containerConstruction, Type valueType, TypeBuilder typeBuilder, MethodBuilder methodBuilder)
       : base(containerConstruction, typeBuilder)
@@ -22,16 +21,17 @@ namespace XP.Injection
       var ilGenerator = _methodBuilder.GetILGenerator();
       foreach (var constructorParameterType in ConstructorFieldBuilders)
       {
-        var constructorParameterBuilders = ContainerConstruction.GetOrAddFactoryBuilder(constructorParameterType.Key);
+        var factoryBuilder = ContainerConstruction.GetType().GetTypeInfo().GetDeclaredMethod("GetOrAddFactoryBuilder").MakeGenericMethod(constructorParameterType.Key).Invoke(ContainerConstruction, new object[0]);
+        var methodBuilder = ((MethodBuilder) factoryBuilder.GetType().GetTypeInfo().GetDeclaredProperty("MethodBuilder").GetMethod.Invoke(factoryBuilder, new object[0]));
         ilGenerator.Emit(OpCodes.Ldarg_0);
         ilGenerator.Emit(OpCodes.Ldfld, constructorParameterType.Value);
-        ilGenerator.Emit(OpCodes.Callvirt, constructorParameterBuilders.MethodBuilder);
+        ilGenerator.Emit(OpCodes.Callvirt, methodBuilder);
         ilGenerator.Emit(OpCodes.Castclass, constructorParameterType.Key);
       }
 
       ilGenerator.Emit(OpCodes.Newobj, valueType.GetPublicConstructor());
       ilGenerator.Emit(OpCodes.Ret);
-      var createMethod = typeof(IFactory).GetRuntimeMethod("Get", new Type[0]);
+      var createMethod = typeof(IFactory<T>).GetRuntimeMethod("Get", new Type[0]);
       _typeBuilder.DefineMethodOverride(_methodBuilder, createMethod);
     }
 

@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
 namespace XP.Injection
 {
-  public class SingletonObjectFactory : ObjectFactoryBase
+  public class SingletonObjectFactory<T> : ObjectFactoryBase<T>
   {
     public SingletonObjectFactory(IContainerConstruction containerConstruction, Type valueType, TypeBuilder typeBuilder, MethodBuilder methodBuilder)
       : base(containerConstruction, typeBuilder)
@@ -28,11 +27,11 @@ namespace XP.Injection
       ilGenerator.Emit(OpCodes.Ldarg_0);
       foreach (var constructorParameterType in ConstructorFieldBuilders)
       {
-        var constructorParameterBuilders = ContainerConstruction.GetOrAddFactoryBuilder(constructorParameterType.Key);
+        var factoryBuilder = ContainerConstruction.GetType().GetTypeInfo().GetDeclaredMethod("GetOrAddFactoryBuilder").MakeGenericMethod(constructorParameterType.Key).Invoke(ContainerConstruction, new object[0]);
+        var methodBuilder = ((MethodBuilder) factoryBuilder.GetType().GetTypeInfo().GetDeclaredProperty("MethodBuilder").GetMethod.Invoke(factoryBuilder, new object[0]));
         ilGenerator.Emit(OpCodes.Ldarg_0);
         ilGenerator.Emit(OpCodes.Ldfld, constructorParameterType.Value);
-        ilGenerator.Emit(OpCodes.Callvirt, constructorParameterBuilders.MethodBuilder);
-        ilGenerator.Emit(OpCodes.Castclass, constructorParameterType.Key);
+        ilGenerator.Emit(OpCodes.Callvirt, methodBuilder);
       }
 
       ilGenerator.Emit(OpCodes.Newobj, valueType.GetPublicConstructor());
@@ -42,7 +41,7 @@ namespace XP.Injection
       ilGenerator.Emit(OpCodes.Ldfld, singletonFieldBuilder);
       ilGenerator.Emit(OpCodes.Ret);
 
-      var createMethod = typeof(IFactory).GetRuntimeMethod(nameof(IFactory.Get), new Type[0]);
+      var createMethod = typeof(IFactory<T>).GetRuntimeMethod(nameof(IFactory<T>.Get), new Type[0]);
       TypeBuilder.DefineMethodOverride(_methodBuilder, createMethod);
     }
 

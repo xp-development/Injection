@@ -2,8 +2,8 @@
 
 namespace XP.Injection
 {
-  public interface IObjectFactory
+  public interface IObjectFactory<out T>
   {
-    IFactory Create( Type valueType );
+    IFactory<object> Create( Type valueType );
   }
 }

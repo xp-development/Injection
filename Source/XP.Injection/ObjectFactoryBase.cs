@@ -6,7 +6,7 @@ using System.Reflection.Emit;
 
 namespace XP.Injection
 {
-  public abstract class ObjectFactoryBase : IObjectFactory
+  public abstract class ObjectFactoryBase<T> : IObjectFactory<T>
   {
     protected TypeBuilder TypeBuilder { get; }
 
@@ -16,11 +16,11 @@ namespace XP.Injection
       TypeBuilder = typeBuilder;
     }
 
-    public IFactory Create(Type keyType)
+    public IFactory<object> Create(Type keyType)
     {
-      var factoryBuilder = ContainerConstruction.GetOrAddFactoryBuilder(keyType);
-      var constructorArgs = factoryBuilder.ValueType.GetPublicConstructor().GetConstructorParameterTypes().Select(Create).Cast<object>().ToArray();
-      return (IFactory) Activator.CreateInstance(factoryBuilder.TypeBuilder.CreateTypeInfo().AsType(), constructorArgs.Length == 0 ? null : constructorArgs);
+      var factoryBuilder = ContainerConstruction.GetType().GetTypeInfo().GetDeclaredMethod("GetOrAddFactoryBuilder").MakeGenericMethod(keyType).Invoke(ContainerConstruction, new object[0]);
+      var constructorArgs = ((Type)factoryBuilder.GetType().GetTypeInfo().GetDeclaredProperty("ValueType").GetMethod.Invoke(factoryBuilder, new object[0])).GetPublicConstructor().GetConstructorParameterTypes().Select(Create).Cast<object>().ToArray();
+      return (IFactory<object>) Activator.CreateInstance(((TypeBuilder)factoryBuilder.GetType().GetTypeInfo().GetDeclaredProperty("TypeBuilder").GetMethod.Invoke(factoryBuilder, new object[0])).CreateTypeInfo().AsType(), constructorArgs.Length == 0 ? null : constructorArgs);
     }
 
     protected void AddConstructor(Type valueType, TypeBuilder typeBuilder)
@@ -29,7 +29,11 @@ namespace XP.Injection
       if (constructorParameterTypes.Length == 0)
         return;
 
-      var constructorTypes = constructorParameterTypes.Select(x => new {ConstructorType = x, FactoryType = ContainerConstruction.GetOrAddFactoryBuilder(x).TypeBuilder.AsType()}).ToArray();
+      var constructorTypes = constructorParameterTypes.Select(x =>
+                                                              {
+                                                                var factoryBuilder = ContainerConstruction.GetType().GetTypeInfo().GetDeclaredMethod("GetOrAddFactoryBuilder").MakeGenericMethod(x).Invoke(ContainerConstruction, new object[0]);
+                                                                return new {ConstructorType = x, FactoryType = ((TypeBuilder)factoryBuilder.GetType().GetTypeInfo().GetDeclaredProperty("TypeBuilder").GetMethod.Invoke(factoryBuilder, new object[0])).AsType()};
+                                                              }).ToArray();
 
       var constructorBuilder = typeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, constructorTypes.Select(x => x.FactoryType).ToArray());
       var ilGenerator = constructorBuilder.GetILGenerator();

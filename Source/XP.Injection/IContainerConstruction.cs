@@ -1,9 +1,7 @@
-﻿using System;
-
-namespace XP.Injection
+﻿namespace XP.Injection
 {
   public interface IContainerConstruction
   {
-    IFactoryBuilder GetOrAddFactoryBuilder(Type keyType);
+    IFactoryBuilder<T> GetOrAddFactoryBuilder<T>();
   }
 }

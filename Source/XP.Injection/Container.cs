@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -18,14 +17,17 @@ namespace XP.Injection
       }
     }
 
-    public IFactoryBuilder GetOrAddFactoryBuilder(Type keyType)
+    public IFactoryBuilder<T> GetOrAddFactoryBuilder<T>()
     {
+      Type keyType = typeof(T);
       if (_factoryBuilders.TryGetValue(keyType, out var factoryBuilder))
-        return factoryBuilder;
+        return (IFactoryBuilder<T>) factoryBuilder;
 
       var factoryTypeBuilder = _moduleBuilder.DefineType("TypeFactory" + _uniqueIdentifier++ + keyType.Name, TypeAttributes.Public, null, new[] {typeof(IFactory<>).MakeGenericType(keyType)});
-      var factoryMethodBuilder = factoryTypeBuilder.DefineMethod("IFactory.Get", MethodAttributes.Public | MethodAttributes.Virtual, typeof(object), new Type[0]);
-      return _factoryBuilders.GetOrAdd(keyType, new FactoryBuilder(this, factoryTypeBuilder, factoryMethodBuilder));
+      var factoryMethodBuilder = factoryTypeBuilder.DefineMethod("IFactory.Get", MethodAttributes.Public | MethodAttributes.Virtual, keyType, new Type[0]);
+      var builder = new FactoryBuilder<T>(this, factoryTypeBuilder, factoryMethodBuilder);
+      _factoryBuilders.Add(keyType, (IFactoryBuilder<object>) builder);
+      return builder;
     }
 
     public void Register<TKey, TValue>()
@@ -48,7 +50,7 @@ namespace XP.Injection
         factoryInitialized = false;
         foreach (var registryEntry in _registry.ToList().Where(x => !x.MissingInjectionTypes.Any()))
         {
-          var builder = GetOrAddFactoryBuilder(registryEntry.KeyType);
+          var builder = (IFactoryBuilder<object>)GetType().GetTypeInfo().GetDeclaredMethod(nameof(GetOrAddFactoryBuilder)).MakeGenericMethod(registryEntry.KeyType).Invoke(this, new object[0]);
           _factories.Add(registryEntry.KeyType, builder.CreateFactory(registryEntry.KeyType, registryEntry.ValueType, registryEntry.FactoryType));
           _registry.Remove(registryEntry);
           foreach (var entry in _registry)
@@ -73,7 +75,7 @@ namespace XP.Injection
     private void AddToRegistry(Type keyType, Type valueType, FactoryType factoryType)
     {
       var registryEntry = new RegistryEntry { KeyType = keyType, ValueType = valueType, FactoryType = factoryType};
-      registryEntry.MissingInjectionTypes.AddRange(valueType.GetPublicConstructor().GetConstructorParameterTypes());
+      registryEntry.MissingInjectionTypes.AddRange(valueType.GetPublicConstructor().GetConstructorParameterTypes().Where(x => !_factories.ContainsKey(x)));
 
       _registry.Add(registryEntry);
     }
@@ -90,8 +92,8 @@ namespace XP.Injection
 
     private static int _uniqueIdentifier;
 
-    private readonly ConcurrentDictionary<Type, IFactoryBuilder> _factoryBuilders = new ConcurrentDictionary<Type, IFactoryBuilder>();
-    private readonly Dictionary<Type, IFactory> _factories = new Dictionary<Type, IFactory>();
+    private readonly Dictionary<Type, IFactoryBuilder<object>> _factoryBuilders = new Dictionary<Type, IFactoryBuilder<object>>();
+    private readonly Dictionary<Type, IFactory<object>> _factories = new Dictionary<Type, IFactory<object>>();
     private readonly IList<RegistryEntry> _registry = new List<RegistryEntry>();
     private readonly ModuleBuilder _moduleBuilder;
   }
